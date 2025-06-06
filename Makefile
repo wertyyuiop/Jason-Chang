@@ -1,38 +1,26 @@
-.PHONY: all clean run
-
-# Compiler settings
 CXX = g++
-CXXFLAGS = -I ./inc -std=c++11
-WARNINGS = -g -Wall
+CXXFLAGS = -std=c++17 -Wall
+OBJS = main.o maze.o player.o block.o obstacle.o
 
-# Source files and object files
-SRCDIR = src
-OBJDIR = obj
-SRCS = $(wildcard $(SRCDIR)/*.cpp)
-OBJS = $(patsubst $(SRCDIR)/%.cpp,$(OBJDIR)/%.o,$(SRCS))
+all: maze_game
 
-# Name of the executable
-TARGET = brave_tour
+maze_game: $(OBJS)
+	$(CXX) $(CXXFLAGS) -o maze_game $(OBJS)
 
-all: $(TARGET)
+main.o: main.cpp maze.h player.h
+	$(CXX) $(CXXFLAGS) -c main.cpp
 
-$(OBJDIR):
-	@mkdir -p $(OBJDIR)  # Create directory if it doesn't exist
+maze.o: maze.cpp maze.h block.h player.h obstacle.h
+	$(CXX) $(CXXFLAGS) -c maze.cpp
 
-$(TARGET): main.cpp $(OBJS)
-	$(CXX) $(WARNINGS) $(CXXFLAGS) $^ -o $@
+player.o: player.cpp player.h maze.h obstacle.h
+	$(CXX) $(CXXFLAGS) -c player.cpp
 
-# Compilation rule for object files with automatic dependency generation
-$(OBJDIR)/%.o: $(SRCDIR)/%.cpp | $(OBJDIR) Makefile
-	$(CXX) $(WARNINGS) $(CXXFLAGS) -c $< -o $@
+block.o: block.cpp block.h
+	$(CXX) $(CXXFLAGS) -c block.cpp
 
-# Run the program
-run:
-	./$(TARGET) $(cell) $(opt) $(output)
+obstacle.o: obstacle.cpp obstacle.h player.h maze.h
+	$(CXX) $(CXXFLAGS) -c obstacle.cpp
 
-# Clean rule
 clean:
-	@echo "Cleaning up..."
-	rm -rf $(OBJDIR)/*.o $(TARGET)
-
-cfile:
+	rm -f *.o maze_game
