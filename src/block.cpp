@@ -40,18 +40,6 @@ Goal::Goal() : Block(GOAL) {
     symbol[2][0] = '$'; symbol[2][2] = '$';
 }
 
-Obstacle::Obstacle() : Block(OBSTACLE) {
-    for (int i = 0; i < 3; ++i)
-        for (int j = 0; j < 3; ++j)
-            symbol[i][j] = '@';
-    symbol[1][1] = '#';
-}
-
-void Obstacle::player_touched(bool& valid, Player& player) {
-    hp -= player.getAtk();
-    valid = (hp <= 0);
-}
-
 Key::Key() : Block(KEY) {
     symbol[1][1] = 'K';
 }
