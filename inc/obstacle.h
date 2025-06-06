@@ -12,8 +12,6 @@ private:
 public:
     Obstacle();
     int getHp() const { return hp; }
-
-    // 玩家攻擊後會回傳是否打倒該障礙
     void player_touched(bool& valid, Player& player, Maze* maze);
 };
 
