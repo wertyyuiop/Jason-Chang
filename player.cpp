@@ -1,3 +1,4 @@
+// player.cpp
 #include "player.h"
 #include "maze.h"
 #include "movable_goal.h"
@@ -7,118 +8,175 @@
 #include <iostream>
 using namespace std;
 
-Player::Player():Block(PLAYER){}
+Player::Player()
+  : Block(PLAYER),
+    player_row(1), player_col(1),
+    hasSword(false), hasKey(false),
+    atk(10), hp(100),
+    keyCollected(0)
+{}
 
+// 提示并?取方向
 char Player::get_direction() const {
-    char d;cout<<"Dir (WASD, E exit):";cin>>d;return toupper(d);
+    char d;
+    cout << "Dir (WASD, E exit): ";
+    cin >> d;
+    string s;
+    getline(cin, s);  // consume the rest of the line (including the newline)
+    return toupper(d);
 }
 
-bool Player::move(char d, Maze* maze) {
+
+int Player::move(char d, Maze* maze) {
+    std::string dummy;
     int nr = player_row, nc = player_col;
-    if (d == 'W')      nr--;
+
+    // 1) ?算目?格
+    if      (d == 'W') nr--;
     else if (d == 'S') nr++;
     else if (d == 'A') nc--;
     else if (d == 'D') nc++;
     else return false;
 
-    if (nr < 0 || nr >= maze->get_nRow() || nc < 0 || nc >= maze->get_nCol()) {
-        cout << "OOB\n";
+    // 2) 越界??
+    if (nr < 0 || nr >= maze->get_nRow() ||
+        nc < 0 || nc >= maze->get_nCol()) {
+        std::cout << "OOB\n";
+        std::cout << "Press Enter to continue...";
+        std::getline(std::cin, dummy);
         return false;
     }
 
-    Block* t = maze->get_maze()[nr][nc];
-    BlockType tp = t->getType();
+    Block* blk = maze->get_maze()[nr][nc];
+    BlockType tp = blk->getType();
 
+    // 3) ?
     if (tp == WALL) {
-        t->player_touched();
+        blk->player_touched();
+        std::cout << "Press Enter to continue...";
+        std::getline(std::cin, dummy);
         return false;
     }
 
-    if (tp == OBSTACLE) {
-        auto* o = dynamic_cast<Obstacle*>(t);
+    // 4) **先** ?理 Monster（它也?告? OBSTACLE type）
+    if (auto* mo = dynamic_cast<Monster*>(blk)) {
+        if (!getHasSword()) {
+          cout << "Monster blocks your way!\n";
+          return -1;
+        }
         bool ok = false;
-        o->player_touched(ok, *this, maze);
+        mo->player_touched(ok, *this, maze);
         if (!ok) {
-            cout << "Hit! HP=" << o->getHp() << endl;
+            // always safe to call getHp() on mo
+            std::cout << "Hit! HP=" << mo->getHp() << "\n";
+            std::cout << "Press Enter to continue...";
+            std::getline(std::cin, dummy);
             return false;
         }
-        cout << "Cleared\n";
-        delete maze->get_maze()[nr][nc];
-        maze->get_maze()[nr][nc] = new Empty();
-        t = maze->get_maze()[nr][nc];
-        tp = t->getType();
-    }
+        std::cout << "Monster defeated\n";
+        std::cout << "Press Enter to continue...";
+        std::getline(std::cin, dummy);
 
-    if (auto* s = dynamic_cast<Sword*>(t)) {
-        s->player_touched(*this);
-        delete maze->get_maze()[nr][nc];
+        // 覆?成 Empty（不 delete mo itself）
         maze->get_maze()[nr][nc] = new Empty();
-        t = maze->get_maze()[nr][nc];
-        tp = t->getType();
+        blk = maze->get_maze()[nr][nc];
+        tp = blk->getType();
     }
-    else if (auto* m = dynamic_cast<Monster*>(t)) {
+    // 5) 碰到一般 Obstacle
+    else if (tp == OBSTACLE) {
+        auto* ob = dynamic_cast<Obstacle*>(blk);
         bool ok = false;
-        m->player_touched(ok, *this, maze);
-        if (!ok) return false;
-        delete maze->get_maze()[nr][nc];
-        maze->get_maze()[nr][nc] = new Empty();
-        t = maze->get_maze()[nr][nc];
-        tp = t->getType();
-    }
-    else if (tp == KEY) {
-        cout << "Key++\n";
-        keyCollected++;
-        delete maze->get_maze()[nr][nc];
-        maze->get_maze()[nr][nc] = new Empty();
-        t = maze->get_maze()[nr][nc];
-        tp = t->getType();
-    }
-    else if (tp == GOAL) {
-        // 掃描整張地圖，看看還有沒有 KEY
-        bool anyKeysLeft = false;
-        for (auto& row : maze->get_maze()) {
-            for (auto* blk : row) {
-                if (blk->getType() == KEY) {
-                    anyKeysLeft = true;
-                    break;
-                }
-            }
-            if (anyKeysLeft) break;
-        }
-        if (!anyKeysLeft || keyCollected > 0) {
-            cout << "You win!\n";
-            return true;
-        } else {
-            cout << "Need key\n";
+        ob->player_touched(ok, *this, maze);
+        if (!ok) {
+            std::cout << "Hit! HP=" << ob->getHp() << "\n";
+            std::cout << "Press Enter to continue...";
+            std::getline(std::cin, dummy);
             return false;
         }
-    }
-    else if (auto* mg = dynamic_cast<MovableGoal*>(t)) {
-        // 不做事，直接往下移動玩家
-    }
-    else if (auto* p = dynamic_cast<Portal*>(t)) {
-        // 傳送並更新 nr,nc
-        p->teleport(maze, nr, nc);
-    }
-    
-    maze->get_maze()[player_row][player_col] = new Empty();
+        std::cout << "Cleared\n";
+        std::cout << "Press Enter to continue...";
+        std::getline(std::cin, dummy);
 
-    // 更新座標並放上 this
+        maze->get_maze()[nr][nc] = new Empty();
+        blk = maze->get_maze()[nr][nc];
+        tp = blk->getType();
+    }
+
+    // 6) 拾?
+    if (auto* sw = dynamic_cast<Sword*>(blk)) {
+        sw->player_touched(*this);
+        std::cout << "Got Sword\n";
+        std::cout << "Press Enter to continue...";
+        std::getline(std::cin, dummy);
+
+        maze->get_maze()[nr][nc] = new Empty();
+        blk = maze->get_maze()[nr][nc];
+        tp = blk->getType();
+    }
+    // 7) 拾?匙
+    else if (tp == KEY) {
+        std::cout << "Key++\n";
+        std::cout << "Press Enter to continue...";
+        std::getline(std::cin, dummy);
+        keyCollected++;
+
+        maze->get_maze()[nr][nc] = new Empty();
+        blk = maze->get_maze()[nr][nc];
+        tp = blk->getType();
+    }
+    // 8) ??
+    else if (tp == GOAL) {
+        if (maze->keyCount == keyCollected)
+          std::cout << "You win!\n";
+        else
+          std::cout << "Need key\n";
+
+        std::cout << "Press Enter to continue...";
+        std::getline(std::cin, dummy);
+        return maze->keyCount == keyCollected;
+    }
+    // 9) 可移目?
+    else if (dynamic_cast<MovableGoal*>(blk)) {
+        // pass
+    }
+    // 10) ?送?
+    else if (auto* p = dynamic_cast<Portal*>(blk)) {
+        p->teleport(maze, nr, nc);
+        std::cout << "Press Enter to continue...";
+        std::getline(std::cin, dummy);
+    }
+
+    // 11) 清空?位置：Portal 恢复其指?，否? new Empty
+    {
+        bool restored = false;
+        for (Portal* port : maze->get_portals()) {
+            if (port->getRow() == player_row &&
+                port->getCol() == player_col)
+            {
+                maze->get_maze()[player_row][player_col] = port;
+                restored = true;
+                break;
+            }
+        }
+        if (!restored) {
+            maze->get_maze()[player_row][player_col] = new Empty();
+        }
+    }
+
+    // 12) 更新玩家位置并放入自己
     player_row = nr;
     player_col = nc;
     maze->get_maze()[player_row][player_col] = this;
-
-    // Restore portals
-    for (Portal* p : maze->get_portals()) {
-        int pr = p->getRow(), pc = p->getCol();
-        if (pr == player_row && pc == player_col) continue;
-        maze->get_maze()[pr][pc] = p;
-    }
 
     return false;
 }
 
 
-void Player::change_symbol(Maze* maze){
-    maze->get_maze()[player_row][player_col]=this;
+
+
+
+
+// 确保玩家符?被正确放入地?
+void Player::change_symbol(Maze* maze) {
+    maze->get_maze()[player_row][player_col] = this;
 }

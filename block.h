@@ -1,3 +1,4 @@
+// block.h
 #ifndef BLOCK_H
 #define BLOCK_H
 
@@ -21,7 +22,8 @@ enum BlockType {
 class Block {
 protected:
     vector<vector<char>> symbol;
-    bool isVisible;
+    // ? type 放在 isVisible 之后，和下面初始化列表?序一致
+    bool      isVisible;
     BlockType type;
 
 public:
